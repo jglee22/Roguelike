@@ -18,20 +18,9 @@ public class FloorPortal : MonoBehaviour
     {
         if (!other.CompareTag("Player")) return;
 
-        //Time.timeScale = 0f;
-        //upgradeUI.SetActive(true); // 강화 UI 표시
-
         GameManager.Instance.currentFloor++;
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
-    //public void OnUpgradeSelected()
-    //{
-    //    //upgradeUI.SetActive(false);
-    //    Time.timeScale = 1f;
-
-    //    GameManager.Instance.currentFloor++;
-    //    SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-    //}
 
     // 적 전멸 후 호출
     public void ActivatePortal()

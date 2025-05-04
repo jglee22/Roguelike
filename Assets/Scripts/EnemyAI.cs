@@ -29,8 +29,6 @@ public class EnemyAI : MonoBehaviour
             moveSpeed = data.enemySpeed;
             damage = data.enemyDamage;
         }
-        //EnemyManager.EnemyCount++;
-        Debug.Log($"enemy Count : {EnemyManager.EnemyCount}");
     }
 
     void Update()

@@ -129,12 +129,6 @@ public class PlayerStatus : MonoBehaviour
         currentXP -= requiredXP;
         requiredXP = Mathf.RoundToInt(requiredXP * 1.2f); // 난이도 점점 증가
 
-        //// 능력치 증가
-        //attackPower += 2f;
-        //attackSpeed += 0.05f;
-        //maxHealth += 10;
-        //currentHealth = maxHealth; // 레벨업 시 체력 회복
-
         FindAnyObjectByType<UpgradeManager>().RequestUpgrade();
 
         Debug.Log($"레벨업! 현재 레벨: {level}");

@@ -47,10 +47,9 @@ public class UpgradeManager : MonoBehaviour
         foreach (var upgrade in options)
         {
             GameObject buttonGO = Instantiate(upgradeButtonPrefab, upgradePanel.transform);
-            var icon = buttonGO.transform.Find("Icon").GetComponent<Image>();
-            //var nameText = buttonGO.transform.Find("NameText").GetComponent<TMP_Text>();
-            var descText = buttonGO.transform.Find("DescText").GetComponent<TMP_Text>();
-            var btn = buttonGO.GetComponent<Button>();
+            Image icon = buttonGO.transform.Find("Icon").GetComponent<Image>();
+            TMP_Text descText = buttonGO.transform.Find("DescText").GetComponent<TMP_Text>();
+            Button btn = buttonGO.GetComponent<Button>();
             btn.name = upgrade.upgradeType.ToString();
             icon.sprite = upgrade.icon;
             //nameText.text = upgrade.upgradeName;
@@ -69,7 +68,6 @@ public class UpgradeManager : MonoBehaviour
         Time.timeScale = 0f;
         upgradePanelDescText.SetActive(true);
         upgradePanel.gameObject.SetActive(true);
-        
     }
 
     public void SelectAttackPower()

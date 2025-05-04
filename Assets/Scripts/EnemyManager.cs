@@ -51,7 +51,6 @@ public class EnemyManager : MonoBehaviour
         if (!bossTest)
         {
             if (currentFloor % 10 == 0)
-            //if (currentFloor == 1 || currentFloor % 10 == 0)
             {
                 SpawnBoss(); // 10층 단위로 보스 생성
             }
