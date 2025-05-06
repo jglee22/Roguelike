@@ -26,13 +26,11 @@ public class UpgradeManager : MonoBehaviour
     public GameObject upgradePanel;
 
     public List<UpgradeOption> allUpgrades;
-    //public List<UpgradeSlot> upgradeSlots;
 
     public GameObject upgradeButtonPrefab; // 버튼 프리팹
 
     private Queue<bool> upgradeQueue = new Queue<bool>();
     private bool isUpgradeShowing = false;
-
 
     private void Start()
     {
@@ -136,6 +134,11 @@ public class UpgradeManager : MonoBehaviour
     }
     public void RequestUpgrade()
     {
+        // 업그레이드 가능한 옵션만 필터링
+        var availableUpgrades = allUpgrades
+            .Where(data => !PlayerStatus.Instance.IsUpgradeMaxed(data.upgradeType))
+            .ToList();
+
         upgradeQueue.Enqueue(true);
         TryShowUpgrade(); // 중복 방지 체크 포함
     }

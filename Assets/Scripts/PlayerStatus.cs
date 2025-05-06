@@ -6,7 +6,8 @@ public class PlayerStatus : MonoBehaviour
     public static PlayerStatus Instance;
     [Header("공격 관련 변수")]
     public float attackPower = 10f; // 데미지
-    public float attackSpeed = 1.0f; // 공격 속도
+    public float attackSpeed = 1f; // 공격 속도
+    public float maxAttackSpeed = 2f;
     [Header("체력 관련 변수")]
     public int maxHealth = 100; // 최대 체력
     public int currentHealth; // 현재 체력
@@ -24,15 +25,17 @@ public class PlayerStatus : MonoBehaviour
 
     [Header("체력 재생")]
     public bool isHealthRegen = false;
-    public float regenAmount = 2f;
+    public float regenAmount = 0f;
+    public float maxRegenAmount = 2f;
     public float regenInterval = 3f;
     private float regenTimer = 0f;
 
     [Header("크리티컬")]
-    public float critChance = 0f;       // 0~100%
+    public float critChance = 0f;       // 0~50%
     public float critMultiplier = 2f;   // 데미지 배수
+    public float maxCriticalChance = 50f; // 최대 크리티컬 확률
 
-    private float baseAttackSpeed = 1.0f;
+    private float baseAttackSpeed = 1f;
     private float baseAttackPower = 10f;
     private int baseMaxHP = 100;
 
@@ -71,6 +74,11 @@ public class PlayerStatus : MonoBehaviour
         maxHealth += 20;
         currentHealth = maxHealth;
     }
+    public bool CanUpgradeAttackSpeed() => attackSpeed < maxAttackSpeed;
+    public bool CanUpgradeHealthRegen() => regenAmount < maxHealth || !isHealthRegen;
+
+    public bool CanUpgradeCritChance() => critChance < maxCriticalChance;
+
 
     public void ResetStats()
     {
@@ -148,7 +156,7 @@ public class PlayerStatus : MonoBehaviour
     public void UpgradeCritChance()
     {
         critChance += 10f;
-        critChance = Mathf.Min(critChance, 100f); // 최대 100%
+        critChance = Mathf.Min(critChance, maxCriticalChance); // 최대 100%
     }
 
     public void UpgradeHealthRegen()
@@ -165,6 +173,21 @@ public class PlayerStatus : MonoBehaviour
                 regenAmount += 0.2f;
                 regenAmount = Mathf.Min(regenAmount, 1f);
             }
+        }
+    }
+    public bool IsUpgradeMaxed(UpgradeType type)
+    {
+        switch (type)
+        {
+            case UpgradeType.CritChance:
+                return critChance >= maxCriticalChance;
+            case UpgradeType.HealthRegen:
+                return regenAmount >= maxRegenAmount;
+            case UpgradeType.AttackSpeed:
+                return attackSpeed >= maxAttackSpeed;
+            // 필요 시 다른 항목도 추가
+            default:
+                return false;
         }
     }
 }
