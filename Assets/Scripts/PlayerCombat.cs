@@ -20,18 +20,19 @@ public class PlayerCombat : MonoBehaviour
     {
         animator = GetComponent<Animator>();
         UpdateAnimator(); // 처음 애니메이터 설정
-        leftHitbox.SetActive(false);
-        rightHitbox.SetActive(false);
+        //leftHitbox.SetActive(false);
+        //rightHitbox.SetActive(false);
         animator.SetFloat("AnimSpeed", PlayerStatus.Instance.attackSpeed);
+        PlayerStatus.Instance.InitializeElementTargets(leftHitbox.transform, rightHitbox.transform);
     }
 
     // 왼펀치 애니메이션에 연결
-    public void EnableLeftHitbox() => leftHitbox.SetActive(true);
-    public void DisableLeftHitbox() => leftHitbox.SetActive(false);
+    public void EnableLeftHitbox() => leftHitbox.GetComponent<Collider>().enabled = true;
+    public void DisableLeftHitbox() => leftHitbox.GetComponent<Collider>().enabled = false;
 
     // 오른펀치 애니메이션에 연결
-    public void EnableRightHitbox() => rightHitbox.SetActive(true);
-    public void DisableRightHitbox() => rightHitbox.SetActive(false);
+    public void EnableRightHitbox() => rightHitbox.GetComponent<Collider>().enabled = true;
+    public void DisableRightHitbox() => rightHitbox.GetComponent<Collider>().enabled = false;
     void Update()
     {
         if (Input.GetMouseButtonDown(0)) // 클릭 감지

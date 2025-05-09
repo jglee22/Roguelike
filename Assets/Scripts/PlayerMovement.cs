@@ -14,7 +14,10 @@ public class PlayerMovement : MonoBehaviour
     public Transform groundCheck; // 바닥 감지용 오브젝트 (캐릭터 발 아래) 
     public float groundDistance = 0.3f; // 바닥 체크 거리
     public LayerMask groundMask; // 바닥 레이어
-
+    private void Awake()
+    {
+        DontDestroyOnLoad(this.gameObject);
+    }
     void Start()
     {
         controller = GetComponent<CharacterController>();

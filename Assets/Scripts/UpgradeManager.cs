@@ -18,7 +18,9 @@ public enum UpgradeType
     AttackSpeed,
     HealthRegen,
     CritChance,
-    MaxHealth
+    MaxHealth,
+    ElementalFire,
+    ElementalIce,
 }
 public class UpgradeManager : MonoBehaviour
 {
@@ -39,30 +41,51 @@ public class UpgradeManager : MonoBehaviour
     }
     public void ShowUpgradeOptions()
     {
-        // 업그레이드 3개 랜덤 선택
-        var options = allUpgrades.OrderBy(x => Random.value).Take(3).ToList();
+        // 업그레이드 가능한 항목만 필터링
+        var availableUpgrades = allUpgrades
+            .Where(data => !PlayerStatus.Instance.IsUpgradeMaxed(data.upgradeType))
+            .ToList();
+
+        // 업그레이드 가능한 항목이 하나도 없으면 UI 표시하지 않음
+        if (availableUpgrades.Count == 0)
+        {
+            Debug.Log("모든 업그레이드를 완료했습니다.");
+            return;
+        }
+
+        // 가능한 업그레이드 중에서 최대 3개 랜덤 선택
+        var options = availableUpgrades
+            .OrderBy(x => Random.value)
+            .Take(Mathf.Min(3, availableUpgrades.Count))
+            .ToList();
 
         foreach (var upgrade in options)
         {
+            // 버튼 프리팹 생성 및 하위 요소 캐싱
             GameObject buttonGO = Instantiate(upgradeButtonPrefab, upgradePanel.transform);
             Image icon = buttonGO.transform.Find("Icon").GetComponent<Image>();
             TMP_Text descText = buttonGO.transform.Find("DescText").GetComponent<TMP_Text>();
             Button btn = buttonGO.GetComponent<Button>();
-            btn.name = upgrade.upgradeType.ToString();
-            icon.sprite = upgrade.icon;
-            //nameText.text = upgrade.upgradeName;
-            descText.text = upgrade.description;
 
+            // 버튼 이름 설정 (디버깅 용도)
+            btn.name = upgrade.upgradeType.ToString();
+
+            // 아이콘 및 설명 설정
+            icon.sprite = upgrade.icon;
+            descText.text = $"{upgrade.description}\n<color=#AAAAAA>{upgrade.GetStatusText()}</color>";
+
+            // 클릭 시 업그레이드 적용 및 UI 비활성화
             btn.onClick.AddListener(() =>
             {
                 ApplyUpgrade(upgrade);
-                OnUpgradeSelected();
+                OnUpgradeSelected(); // 업그레이드 후 처리 (패널 끄기 등)
                 Debug.Log($"업그레이드 : {upgrade.upgradeType}");
                 upgradePanel.gameObject.SetActive(false);
                 upgradePanelDescText.SetActive(false);
             });
         }
 
+        // 게임 정지 및 패널 표시
         Time.timeScale = 0f;
         upgradePanelDescText.SetActive(true);
         upgradePanel.gameObject.SetActive(true);
@@ -95,27 +118,34 @@ public class UpgradeManager : MonoBehaviour
     }
     public void ApplyUpgrade(UpgradeOption upgradeOption)
     {
-        var status = PlayerStatus.Instance;
-
         switch (upgradeOption.upgradeType)
         {
             case UpgradeType.AttackPower:
-                status.UpgradeAttackPower();
+                PlayerStatus.Instance.UpgradeAttackPower();
                 break;
             case UpgradeType.AttackSpeed:
-                status.UpgradeAttackSpeed();
+                PlayerStatus.Instance.UpgradeAttackSpeed();
                 break;
             case UpgradeType.HealthRegen:
-                if (!status.isHealthRegen)
-                    status.isHealthRegen = true;
-                else
-                    status.regenAmount += 1f;
+                PlayerStatus.Instance.UpgradeHealthRegen();
                 break;
             case UpgradeType.CritChance:
-                status.UpgradeCritChance();
+                PlayerStatus.Instance.UpgradeCritChance();
                 break;
             case UpgradeType.MaxHealth:
-                status.UpgradeMaxHealth();
+                PlayerStatus.Instance.UpgradeMaxHealth();
+                break;
+            case UpgradeType.ElementalFire:
+                //PlayerStatus.Instance.currentElement |= ElementType.Fire;
+                PlayerStatus.Instance.ApplyElement(ElementType.Fire);
+                PlayerStatus.Instance.UpgradeAttackPower();
+                Debug.Log($"Fire");
+                break;
+            case UpgradeType.ElementalIce:
+                //PlayerStatus.Instance.currentElement |= ElementType.Ice;
+                PlayerStatus.Instance.ApplyElement(ElementType.Ice);
+                PlayerStatus.Instance.UpgradeAttackPower();
+                Debug.Log($"Ice");
                 break;
         }
         
@@ -133,12 +163,7 @@ public class UpgradeManager : MonoBehaviour
         Time.timeScale = 1f;
     }
     public void RequestUpgrade()
-    {
-        // 업그레이드 가능한 옵션만 필터링
-        var availableUpgrades = allUpgrades
-            .Where(data => !PlayerStatus.Instance.IsUpgradeMaxed(data.upgradeType))
-            .ToList();
-
+    { 
         upgradeQueue.Enqueue(true);
         TryShowUpgrade(); // 중복 방지 체크 포함
     }
@@ -160,4 +185,5 @@ public class UpgradeManager : MonoBehaviour
         isUpgradeShowing = false;
         TryShowUpgrade();
     }
+
 }

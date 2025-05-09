@@ -9,8 +9,11 @@ public class CameraFollow : MonoBehaviour
 
     void LateUpdate()
     {
-        if (player == null) return;
+        if (player == null)
+            if (GameManager.Instance.player != null)
+                player = GameManager.Instance.player.transform;
 
+        if (player == null) return;
         // 플레이어의 위치 + 카메라 오프셋 적용
         Vector3 targetPosition = player.position + offset;
 

@@ -48,7 +48,7 @@ TextureImporter:
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
   spritePixelsToUnits: 100
-  spriteBorder: {x: 3, y: 3, z: 3, w: 3}
+  spriteBorder: {x: 40, y: 40, z: 40, w: 40}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
   alphaIsTransparency: 1
@@ -137,7 +137,7 @@ AssetOrigin:
   serializedVersion: 1
   productId: 307236
   packageName: Flat pack - GUI
-  packageVersion: 1.1
+  packageVersion: 1.11
   assetPath: Assets/CorePro/Flat Pack/Shapes/Rectangle 512x512 white  frame/Rectangle
     512x512 I Round 40px/Rectangle 40r  100t  20s - frame.png
-  uploadId: 740099
+  uploadId: 754912

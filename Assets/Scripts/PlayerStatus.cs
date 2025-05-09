@@ -1,5 +1,15 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.UI;
+[System.Flags]
+public enum ElementType
+{
+    None = 0,
+    Fire = 1 << 0,     // 1
+    Ice = 1 << 1,      // 2
+    Poison = 1 << 2,   // 4
+    Electric = 1 << 3  // 8 등등 필요 시 추가
+}
 
 public class PlayerStatus : MonoBehaviour
 {
@@ -40,6 +50,18 @@ public class PlayerStatus : MonoBehaviour
     private int baseMaxHP = 100;
 
     public Slider expSlider;
+
+    public ElementType currentElement = ElementType.None;
+
+    // 속성별 파티클 프리팹 (인스펙터에서 연결)
+    [SerializeField] private GameObject fireEffectPrefab;
+    [SerializeField] private GameObject iceEffectPrefab;
+    // 파티클을 붙일 위치 (예: 주먹 위치의 히트박스)
+    [SerializeField] private GameObject leftHitbox;
+    [SerializeField] private GameObject rightHitbox;
+    // 현재 손에 붙어 있는 속성 파티클 관리용
+    private Dictionary<ElementType, GameObject> leftElementEffects = new();
+    private Dictionary<ElementType, GameObject> rightElementEffects = new();
 
     private void Awake()
     {
@@ -164,15 +186,9 @@ public class PlayerStatus : MonoBehaviour
         PlayerHealth playerHealth = GameObject.Find("Player")?.GetComponent<PlayerHealth>();
         if (playerHealth != null)
         {
-            if (!isHealthRegen)
-            {
-                isHealthRegen = true;
-            }
-            else
-            {
-                regenAmount += 0.2f;
-                regenAmount = Mathf.Min(regenAmount, 1f);
-            }
+            isHealthRegen = true;
+            regenAmount += 0.2f;
+            regenAmount = Mathf.Min(regenAmount, 1f);
         }
     }
     public bool IsUpgradeMaxed(UpgradeType type)
@@ -186,8 +202,59 @@ public class PlayerStatus : MonoBehaviour
             case UpgradeType.AttackSpeed:
                 return attackSpeed >= maxAttackSpeed;
             // 필요 시 다른 항목도 추가
+            case UpgradeType.ElementalFire:
+                return (currentElement & ElementType.Fire) != 0; // 이미 화염 속성 있음
+            case UpgradeType.ElementalIce:
+                return (currentElement & ElementType.Ice) != 0; // 이미 냉기 속성 있음
             default:
                 return false;
         }
+    }
+
+    /// <summary>
+    /// 선택한 속성을 플레이어에게 부여하고 손에 파티클 이펙트 생성.
+    /// 이미 적용된 속성은 무시됩니다.
+    /// </summary>
+    public void ApplyElement(ElementType newElement)
+    {
+        // 중복 속성은 무시
+        Debug.Log($"currentElement: {currentElement}, newElement: {newElement}");
+
+        if ((currentElement & newElement) != 0)
+        {
+            Debug.Log("속성 중복: 스킵");
+            return;
+        }
+        Debug.Log($"ApplyElement 2");
+        currentElement |= newElement; // 속성 추가 (플래그 누적)
+
+        GameObject effectPrefab = GetEffectPrefab(newElement);
+        if (effectPrefab == null) return;
+        Debug.Log($"ApplyElement 3");
+        // 왼손, 오른손 각각 파티클 생성 및 부착
+        GameObject left = Instantiate(effectPrefab, leftHitbox.transform);
+        GameObject right = Instantiate(effectPrefab, rightHitbox.transform);
+        Debug.Log($"left : {left.name}");
+        leftElementEffects[newElement] = left;
+        rightElementEffects[newElement] = right;
+    }
+
+    /// <summary>
+    /// 속성 타입에 따른 파티클 프리팹 반환
+    /// </summary>
+    private GameObject GetEffectPrefab(ElementType type)
+    {
+        switch (type)
+        {
+            case ElementType.Fire: return fireEffectPrefab;
+            case ElementType.Ice: return iceEffectPrefab;
+            // 추가 속성도 여기서 계속 확장 가능
+            default: return null;
+        }
+    }
+    public void InitializeElementTargets(Transform left, Transform right)
+    {
+        leftHitbox = left.gameObject;
+        rightHitbox = right.gameObject;
     }
 }

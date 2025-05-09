@@ -13,6 +13,9 @@ public class GameManager : MonoBehaviour
     public int savedMaxHP = 100;
 
     public GameObject gameOverPanel;
+    [SerializeField]
+    private GameObject playerPrefab;
+
     public GameObject player;
 
     public bool isGameOver = false;
@@ -28,8 +31,17 @@ public class GameManager : MonoBehaviour
         {
             Destroy(gameObject);
         }
-
-        player = GameObject.Find("Player").gameObject;
+        
+    }
+    private void Start()
+    {
+        SpawnPlayerIfNotExists();
+    }
+    private void SpawnPlayerIfNotExists()
+    {
+        player = Instantiate(playerPrefab);
+        player.name = "Player";
+        DontDestroyOnLoad(player);
     }
     public void IncreaseFloor()
     {
