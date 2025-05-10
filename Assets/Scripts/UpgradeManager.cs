@@ -33,62 +33,23 @@ public class UpgradeManager : MonoBehaviour
 
     private Queue<bool> upgradeQueue = new Queue<bool>();
     private bool isUpgradeShowing = false;
-
+    private List<Button> upgradeButtons = new List<Button>(); // 생성된 버튼 추적용
     private void Start()
     {
         upgradePanelDescText.SetActive(false);
         upgradePanel.SetActive(false);
     }
-    public void ShowUpgradeOptions()
+    public void ShowUpgradeOptions(List<UpgradeOption> selectedOptions)
     {
-        // 업그레이드 가능한 항목만 필터링
-        var availableUpgrades = allUpgrades
-            .Where(data => !PlayerStatus.Instance.IsUpgradeMaxed(data.upgradeType))
-            .ToList();
+        ClearUpgradeButtons();
 
-        // 업그레이드 가능한 항목이 하나도 없으면 UI 표시하지 않음
-        if (availableUpgrades.Count == 0)
-        {
-            Debug.Log("모든 업그레이드를 완료했습니다.");
-            return;
-        }
-
-        // 가능한 업그레이드 중에서 최대 3개 랜덤 선택
-        var options = availableUpgrades
-            .OrderBy(x => Random.value)
-            .Take(Mathf.Min(3, availableUpgrades.Count))
-            .ToList();
-
-        foreach (var upgrade in options)
-        {
-            // 버튼 프리팹 생성 및 하위 요소 캐싱
-            GameObject buttonGO = Instantiate(upgradeButtonPrefab, upgradePanel.transform);
-            Image icon = buttonGO.transform.Find("Icon").GetComponent<Image>();
-            TMP_Text descText = buttonGO.transform.Find("DescText").GetComponent<TMP_Text>();
-            Button btn = buttonGO.GetComponent<Button>();
-
-            // 버튼 이름 설정 (디버깅 용도)
-            btn.name = upgrade.upgradeType.ToString();
-
-            // 아이콘 및 설명 설정
-            icon.sprite = upgrade.icon;
-            descText.text = $"{upgrade.description}\n<color=#AAAAAA>{upgrade.GetStatusText()}</color>";
-
-            // 클릭 시 업그레이드 적용 및 UI 비활성화
-            btn.onClick.AddListener(() =>
-            {
-                ApplyUpgrade(upgrade);
-                OnUpgradeSelected(); // 업그레이드 후 처리 (패널 끄기 등)
-                Debug.Log($"업그레이드 : {upgrade.upgradeType}");
-                upgradePanel.gameObject.SetActive(false);
-                upgradePanelDescText.SetActive(false);
-            });
-        }
-
-        // 게임 정지 및 패널 표시
-        Time.timeScale = 0f;
-        upgradePanelDescText.SetActive(true);
         upgradePanel.gameObject.SetActive(true);
+        upgradePanelDescText.SetActive(true);
+
+        foreach (var option in selectedOptions)
+        {
+            CreateUpgradeSlot(option);
+        }
     }
 
     public void SelectAttackPower()
@@ -174,8 +135,19 @@ public class UpgradeManager : MonoBehaviour
 
         isUpgradeShowing = true;
 
+        // 업그레이드 가능한 항목 필터링 후
+        var availableUpgrades = allUpgrades
+            .Where(data => !PlayerStatus.Instance.IsUpgradeMaxed(data.upgradeType))
+            .ToList();
+
+        // 그 중에서 3개만 무작위로 선택
+        var selectedOptions = availableUpgrades
+            .OrderBy(x => Random.value)
+            .Take(3)
+            .ToList();
+
         // 실제 UI 표시
-        ShowUpgradeOptions();
+        ShowUpgradeOptions(selectedOptions);
 
         Debug.Log("업그레이드 UI 표시됨");
     }
@@ -185,5 +157,60 @@ public class UpgradeManager : MonoBehaviour
         isUpgradeShowing = false;
         TryShowUpgrade();
     }
+    private List<UpgradeOption> GetRandomUpgradeOptions()
+    {
+        List<UpgradeOption> available = new List<UpgradeOption>();
 
+        foreach (var option in allUpgrades)
+        {
+            // 등장 확률 체크 + 최대 수치 미달 조건
+            if ((option.spawnChance >= 1f || Random.value <= option.spawnChance) && !HasReachedMax(option))
+            {
+                available.Add(option);
+            }
+        }
+
+        return available.OrderBy(x => Random.value).Take(3).ToList(); // 랜덤 3개 선택
+    }
+    private bool HasReachedMax(UpgradeOption option)
+    {
+        // 현재 플레이어 스탯에서 최대치 도달 여부 확인
+        return PlayerStatus.Instance.IsUpgradeMaxed(option.upgradeType);
+    }
+
+    // 업그레이드 슬롯(버튼)을 생성하고 UI에 설정하는 함수
+    private void CreateUpgradeSlot(UpgradeOption upgrade)
+    {
+        GameObject buttonGO = Instantiate(upgradeButtonPrefab, upgradePanel.transform);
+
+        Image icon = buttonGO.transform.Find("Icon").GetComponent<Image>();
+        TMP_Text descText = buttonGO.transform.Find("DescText").GetComponent<TMP_Text>();
+        Button btn = buttonGO.GetComponent<Button>();
+
+        btn.name = upgrade.upgradeType.ToString();
+        icon.sprite = upgrade.icon;
+        descText.text = $"{upgrade.description}\n<color=#AAAAAA>{upgrade.GetStatusText()}</color>";
+
+        btn.onClick.AddListener(() =>
+        {
+            ApplyUpgrade(upgrade);
+            OnUpgradeSelected();
+            upgradePanel.gameObject.SetActive(false);
+            upgradePanelDescText.SetActive(false);
+        });
+
+        upgradeButtons.Add(btn); // 정리용 리스트에 저장
+    }
+    // 기존 버튼들 정리
+    private void ClearUpgradeButtons()
+    {
+        foreach (Button btn in upgradeButtons)
+        {
+            if (btn != null && btn.gameObject != null)
+            {
+                Destroy(btn.gameObject);
+            }
+        }
+        upgradeButtons.Clear();
+    }
 }

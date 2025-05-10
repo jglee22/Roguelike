@@ -8,6 +8,8 @@ public class UpgradeOption : ScriptableObject
     public UpgradeType upgradeType;
     public float value;  // 예: 증가 수치 (ex. +10%, +2 등)
     public string description;
+    [Range(0, 1f)]
+    public float spawnChance = 0f; // 선택지 등장 확률
 
     public string GetStatusText()
     {
