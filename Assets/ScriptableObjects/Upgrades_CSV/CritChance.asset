@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: CritChance
   m_EditorClassIdentifier: 
   upgradeName: CritChance
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: f3add624b5bc37d45b8da752b22168d3, type: 3}
   upgradeType: 3
   value: 10
   description: "\uCE58\uBA85\uD0C0 \uD655\uB960 \uC99D\uAC00"

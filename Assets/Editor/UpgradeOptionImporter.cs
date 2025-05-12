@@ -68,7 +68,7 @@ public class UpgradeOptionImporter : MonoBehaviour
             upgrade.spawnChance = spawnChance;
 
             // 아이콘 로드 (AssetDatabase 방식)
-            string fullIconPath = iconFolderPath + iconFileName;
+            string fullIconPath = iconFolderPath + iconFileName + ".png";
             Sprite icon = AssetDatabase.LoadAssetAtPath<Sprite>(fullIconPath);
             if (icon == null)
             {

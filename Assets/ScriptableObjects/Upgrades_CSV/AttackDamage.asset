@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: AttackDamage
   m_EditorClassIdentifier: 
   upgradeName: AttackDamage
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 09047b562990f794ea61eff4a98e7b87, type: 3}
   upgradeType: 0
   value: 3
   description: "\uACF5\uACA9\uB825 \uC99D\uAC00"
