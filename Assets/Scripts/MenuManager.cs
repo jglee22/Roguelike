@@ -1,5 +1,4 @@
-﻿using Mono.Cecil.Cil;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class MenuManager : MonoBehaviour
