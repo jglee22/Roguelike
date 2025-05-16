@@ -22,5 +22,4 @@ public class JenkinsAutoBuild : MonoBehaviour
         }
         return EditorScenes.ToArray();
     }
-    출처: https://dev-junwoo.tistory.com/155 [개발초보 JW의 성장일기:티스토리]
 }
