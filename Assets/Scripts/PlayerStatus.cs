@@ -77,24 +77,39 @@ public class PlayerStatus : MonoBehaviour
     }
     void Start()
     {
-        attackSpeed = GameManager.Instance.savedAttackSpeed;
-        attackPower = GameManager.Instance.savedAttackPower;
-        maxHealth = GameManager.Instance.savedMaxHP;
+        if (GameManager.Instance != null)
+        {
+            attackSpeed = GameManager.Instance.savedAttackSpeed;
+            attackPower = GameManager.Instance.savedAttackPower;
+            maxHealth = GameManager.Instance.savedMaxHP;
+        }
 
         currentHealth = maxHealth;
-        expSlider = GameObject.Find("ExpBar").GetComponent<Slider>();
+        CacheExpSlider();
+        SyncPlayerHealth(fullHeal: true);
     }
 
-    public void UpgradeAttackPower() => attackPower += 3f;
+    public void UpgradeAttackPower()
+    {
+        attackPower += 3f;
+        if (GameManager.Instance != null)
+            GameManager.Instance.savedAttackPower = attackPower;
+    }
+
     public void UpgradeAttackSpeed()
     {
         attackSpeed += 0.2f;
-        attackSpeed = Mathf.Min(attackSpeed, 2f); //공격속도 상한선 설정
+        attackSpeed = Mathf.Min(attackSpeed, maxAttackSpeed);
+        if (GameManager.Instance != null)
+            GameManager.Instance.savedAttackSpeed = attackSpeed;
     }
     public void UpgradeMaxHealth()
     {
         maxHealth += 20;
         currentHealth = maxHealth;
+        if (GameManager.Instance != null)
+            GameManager.Instance.savedMaxHP = maxHealth;
+        SyncPlayerHealth(fullHeal: true);
     }
     public bool CanUpgradeAttackSpeed() => attackSpeed < maxAttackSpeed;
     public bool CanUpgradeHealthRegen() => regenAmount < maxHealth || !isHealthRegen;
@@ -109,14 +124,56 @@ public class PlayerStatus : MonoBehaviour
         maxHealth = baseMaxHP;
         currentHealth = maxHealth;
 
-        // GameManager에 저장된 값도 초기화
-        GameManager.Instance.savedAttackSpeed = baseAttackSpeed;
-        GameManager.Instance.savedAttackPower = baseAttackPower;
-        GameManager.Instance.savedMaxHP = baseMaxHP;
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.savedAttackSpeed = baseAttackSpeed;
+            GameManager.Instance.savedAttackPower = baseAttackPower;
+            GameManager.Instance.savedMaxHP = baseMaxHP;
+        }
 
         level = 1;
         currentXP = 0;
         requiredXP = 100;
+        currentStamina = maxStamina;
+        isHealthRegen = false;
+        regenAmount = 0f;
+        regenTimer = 0f;
+        critChance = 0f;
+        currentElement = ElementType.None;
+        ClearElementEffects();
+        SyncPlayerHealth(fullHeal: true);
+    }
+
+    private void SyncPlayerHealth(bool fullHeal)
+    {
+        PlayerHealth playerHealth = GetPlayerHealth();
+        if (playerHealth != null)
+            playerHealth.SyncFromStatus(fullHeal);
+    }
+
+    private PlayerHealth GetPlayerHealth()
+    {
+        if (GameManager.Instance != null && GameManager.Instance.player != null)
+            return GameManager.Instance.player.GetComponent<PlayerHealth>();
+
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        return player != null ? player.GetComponent<PlayerHealth>() : null;
+    }
+
+    private void ClearElementEffects()
+    {
+        foreach (var effect in leftElementEffects.Values)
+        {
+            if (effect != null)
+                Destroy(effect);
+        }
+        foreach (var effect in rightElementEffects.Values)
+        {
+            if (effect != null)
+                Destroy(effect);
+        }
+        leftElementEffects.Clear();
+        rightElementEffects.Clear();
     }
     void Update()
     {
@@ -129,14 +186,21 @@ public class PlayerStatus : MonoBehaviour
 
         UpdateXPUI(); // 추가: 경험치 UI 업데이트
 
-        if (isHealthRegen && currentHealth > 0 && currentHealth < maxHealth)
+        if (isHealthRegen)
         {
-            regenTimer += Time.deltaTime;
-            if (regenTimer >= regenInterval)
+            PlayerHealth playerHealth = GetPlayerHealth();
+            if (playerHealth != null && playerHealth.currentHP > 0 && playerHealth.currentHP < playerHealth.maxHP)
             {
-                currentHealth += Mathf.RoundToInt(regenAmount);
-                currentHealth = Mathf.Min(currentHealth, maxHealth);
-                regenTimer = 0f;
+                regenTimer += Time.deltaTime;
+                if (regenTimer >= regenInterval)
+                {
+                    playerHealth.currentHP = Mathf.Min(
+                        playerHealth.currentHP + Mathf.RoundToInt(regenAmount),
+                        playerHealth.maxHP);
+                    currentHealth = playerHealth.currentHP;
+                    playerHealth.SyncFromStatus(fullHeal: false);
+                    regenTimer = 0f;
+                }
             }
         }
     }
@@ -166,8 +230,8 @@ public class PlayerStatus : MonoBehaviour
 
     private void UpdateXPUI()
     {
-        if(expSlider == null)
-            expSlider = GameObject.Find("ExpBar").GetComponent<Slider>();
+        if (expSlider == null)
+            CacheExpSlider();
 
         if (expSlider != null)
         {
@@ -175,6 +239,14 @@ public class PlayerStatus : MonoBehaviour
             expSlider.value = currentXP;
         }
     }
+
+    private void CacheExpSlider()
+    {
+        GameObject expBar = GameObject.Find("ExpBar");
+        if (expBar != null)
+            expSlider = expBar.GetComponent<Slider>();
+    }
+
     public void UpgradeCritChance()
     {
         critChance += 10f;
@@ -183,13 +255,9 @@ public class PlayerStatus : MonoBehaviour
 
     public void UpgradeHealthRegen()
     {
-        PlayerHealth playerHealth = GameObject.Find("Player")?.GetComponent<PlayerHealth>();
-        if (playerHealth != null)
-        {
-            isHealthRegen = true;
-            regenAmount += 0.2f;
-            regenAmount = Mathf.Min(regenAmount, 1f);
-        }
+        isHealthRegen = true;
+        regenAmount += 0.2f;
+        regenAmount = Mathf.Min(regenAmount, 1f);
     }
     public bool IsUpgradeMaxed(UpgradeType type)
     {
@@ -230,8 +298,12 @@ public class PlayerStatus : MonoBehaviour
 
         GameObject effectPrefab = GetEffectPrefab(newElement);
         if (effectPrefab == null) return;
+        if (leftHitbox == null || rightHitbox == null)
+        {
+            Debug.LogError("[PlayerStatus] 속성 이펙트 부착 대상(left/right Hitbox)이 없습니다. PlayerCombat에서 InitializeElementTargets가 호출되어야 합니다.");
+            return;
+        }
         Debug.Log($"ApplyElement 3");
-        // 왼손, 오른손 각각 파티클 생성 및 부착
         GameObject left = Instantiate(effectPrefab, leftHitbox.transform);
         GameObject right = Instantiate(effectPrefab, rightHitbox.transform);
         Debug.Log($"left : {left.name}");

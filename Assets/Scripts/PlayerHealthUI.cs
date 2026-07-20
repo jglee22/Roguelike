@@ -8,7 +8,8 @@ public class PlayerHealthUI : MonoBehaviour
     public void SetMaxHealth(int maxHP)
     {
         healthSlider.maxValue = maxHP;
-        healthSlider.value = maxHP;
+        if (healthSlider.value > maxHP)
+            healthSlider.value = maxHP;
     }
 
     public void SetCurrentHealth(int currentHP)

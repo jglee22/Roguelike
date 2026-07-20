@@ -19,10 +19,22 @@ public class PlayerCombat : MonoBehaviour
     void Start()
     {
         animator = GetComponent<Animator>();
-        UpdateAnimator(); // 처음 애니메이터 설정
-        //leftHitbox.SetActive(false);
-        //rightHitbox.SetActive(false);
+        UpdateAnimator();
+
+        if (PlayerStatus.Instance == null)
+        {
+            Debug.LogError("[PlayerCombat] PlayerStatus.Instance가 없습니다.");
+            return;
+        }
+
         animator.SetFloat("AnimSpeed", PlayerStatus.Instance.attackSpeed);
+
+        if (leftHitbox == null || rightHitbox == null)
+        {
+            Debug.LogError("[PlayerCombat] leftHitbox/rightHitbox가 할당되지 않았습니다.");
+            return;
+        }
+
         PlayerStatus.Instance.InitializeElementTargets(leftHitbox.transform, rightHitbox.transform);
     }
 

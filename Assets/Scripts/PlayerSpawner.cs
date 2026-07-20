@@ -1,30 +1,14 @@
 ﻿using UnityEngine;
 
+/// <summary>
+/// 플레이어 생성은 GameManager가 담당합니다.
+/// 씬에 남아 있는 경우 충돌을 막기 위해 비활성화합니다.
+/// </summary>
 public class PlayerSpawner : MonoBehaviour
 {
-    private static PlayerSpawner instance;
-
-    [SerializeField] private GameObject playerPrefab;
-
-    void Awake()
+    private void Awake()
     {
-        // 이미 존재하면 자기 자신 제거
-        if (instance != null && instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        // 최초 진입 시 유지
-        instance = this;
-        DontDestroyOnLoad(gameObject);
-
-        // 플레이어가 없으면 생성
-        if (PlayerStatus.Instance == null)
-        {
-            GameObject player = Instantiate(playerPrefab);
-            player.name = "Player";
-            DontDestroyOnLoad(player);
-        }
+        Debug.LogWarning("[PlayerSpawner] 사용되지 않습니다. 플레이어 생성은 GameManager가 담당합니다.");
+        Destroy(gameObject);
     }
 }

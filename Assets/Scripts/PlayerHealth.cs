@@ -12,11 +12,33 @@ public class PlayerHealth : MonoBehaviour
 
     void Start()
     {
-        currentHP = maxHP;
         animator = GetComponent<Animator>();
         healthUI = FindAnyObjectByType<PlayerHealthUI>();
+        SyncFromStatus(fullHeal: true);
+        EnableControl(true);
+    }
 
-        healthUI.SetMaxHealth(maxHP);
+    /// <summary>
+    /// 스탯 소스(PlayerStatus) 기준으로 최대 체력을 맞춥니다.
+    /// </summary>
+    public void SyncFromStatus(bool fullHeal)
+    {
+        if (PlayerStatus.Instance != null)
+            maxHP = PlayerStatus.Instance.maxHealth;
+
+        if (fullHeal)
+            currentHP = maxHP;
+        else
+            currentHP = Mathf.Min(currentHP, maxHP);
+
+        if (PlayerStatus.Instance != null)
+            PlayerStatus.Instance.currentHealth = currentHP;
+
+        if (healthUI != null)
+        {
+            healthUI.SetMaxHealth(maxHP);
+            healthUI.SetCurrentHealth(currentHP);
+        }
     }
 
     public void TakeDamage(int damage)
@@ -24,13 +46,16 @@ public class PlayerHealth : MonoBehaviour
         if (isDead) return;
 
         currentHP -= damage;
+        if (PlayerStatus.Instance != null)
+            PlayerStatus.Instance.currentHealth = currentHP;
+
         Debug.Log($"[플레이어 피격] 현재 체력: {currentHP}");
 
-        // UpperBody 레이어 weight 끄기 (0번이 Base, 1번이 UpperBody일 경우)
         animator.SetLayerWeight(1, 0f);
         animator.SetTrigger("Hit");
 
-        healthUI.SetCurrentHealth(currentHP);
+        if (healthUI != null)
+            healthUI.SetCurrentHealth(currentHP);
 
         if (currentHP <= 0)
         {
@@ -46,21 +71,41 @@ public class PlayerHealth : MonoBehaviour
         animator.SetLayerWeight(1, 0f);
         animator.SetTrigger("Death");
         Debug.Log("[플레이어 사망]");
-        // 조작 스크립트 비활성화
-        GetComponent<PlayerMovement>().enabled = false;
-        GetComponent<PlayerCombat>().enabled = false;
+        EnableControl(false);
 
-        GameManager.Instance.GameOver();
+        if (GameManager.Instance != null)
+            GameManager.Instance.GameOver();
     }
 
     IEnumerator RecoverUpperBodyLayer()
     {
-        yield return new WaitForSeconds(1f); // Hit 애니메이션 길이만큼 대기
-        animator.SetLayerWeight(1, 1f); // 다시 원래대로 복구
+        yield return new WaitForSeconds(1f);
+        if (!isDead)
+            animator.SetLayerWeight(1, 1f);
     }
 
     public void ResetHealth()
     {
+        isDead = false;
+        SyncFromStatus(fullHeal: true);
+        EnableControl(true);
 
+        if (animator != null)
+        {
+            animator.SetLayerWeight(1, 1f);
+            animator.ResetTrigger("Hit");
+            animator.ResetTrigger("Death");
+        }
+    }
+
+    private void EnableControl(bool enabled)
+    {
+        var movement = GetComponent<PlayerMovement>();
+        if (movement != null)
+            movement.enabled = enabled;
+
+        var combat = GetComponent<PlayerCombat>();
+        if (combat != null)
+            combat.enabled = enabled;
     }
 }
