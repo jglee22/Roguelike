@@ -47,9 +47,12 @@ public class PlayerCombat : MonoBehaviour
     public void DisableRightHitbox() => rightHitbox.GetComponent<Collider>().enabled = false;
     void Update()
     {
+        if (UpgradeManager.Instance != null && UpgradeManager.Instance.IsUpgradeBlocking)
+            return;
+
         if (Input.GetMouseButtonDown(0)) // 클릭 감지
         {
-            if (EventSystem.current.IsPointerOverGameObject())
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
             {
                 // UI 클릭 중일 때는 무시
                 return;

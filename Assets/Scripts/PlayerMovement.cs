@@ -23,6 +23,13 @@ public class PlayerMovement : MonoBehaviour
 
     void Update()
     {
+        if (UpgradeManager.Instance != null && UpgradeManager.Instance.IsUpgradeBlocking)
+        {
+            if (animator != null)
+                animator.SetBool("isMoving", false);
+            return;
+        }
+
         // 바닥 감지 (Raycast 사용)
         bool isGrounded = Physics.Raycast(groundCheck.position, Vector3.down, groundDistance, groundMask);
 

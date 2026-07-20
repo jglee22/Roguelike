@@ -3,6 +3,8 @@ using UnityEngine;
 
 public class EnemyHealth : MonoBehaviour
 {
+    private const float DeathDestroyFallbackSeconds = 1.5f;
+
     public int maxHP;
     public bool IsDead => isDead;
     public bool isBoss = false;
@@ -17,12 +19,10 @@ public class EnemyHealth : MonoBehaviour
     private bool enemyCountReduced = false;
     private Collider enemyCollider;
     [Header("이펙트")]
-    public GameObject hitEffectPrefab; // <- 이펙트 프리팹 연결
+    public GameObject hitEffectPrefab;
 
-  
     void Start()
     {
-        // 엑셀 기반 난이도 데이터 적용
         var data = DifficultyManager.Instance.GetFloorData(GameManager.Instance.currentFloor);
         if (data != null)
         {
@@ -35,38 +35,45 @@ public class EnemyHealth : MonoBehaviour
             healthUI.SetMaxHealth(maxHP);
 
         animator = GetComponent<Animator>();
-        healthUI = GetComponentInChildren<EnemyHealthUI>();
         enemyCollider = GetComponent<Collider>();
     }
 
     public void TakeDamage(int damage)
     {
+        if (isDead)
+            return;
+
         float rand = Random.value;
-        if (rand < PlayerStatus.Instance.critChance * 0.01f)
+        if (PlayerStatus.Instance != null && rand < PlayerStatus.Instance.critChance * 0.01f)
         {
-            damage *= 2; // 크리티컬
+            damage *= 2;
         }
 
         currentHP -= damage;
         if (isBoss)
         {
-            BossUIManager.Instance.SetCurrentHealth(currentHP);
+            if (BossUIManager.Instance != null)
+                BossUIManager.Instance.SetCurrentHealth(currentHP);
         }
         else if (healthUI != null)
         {
             healthUI.SetCurrentHealth(currentHP);
         }
-        animator.SetTrigger("Hit");
 
-        // 피격 이펙트 출력
         if (hitEffectPrefab != null)
         {
             Instantiate(hitEffectPrefab, transform.position + Vector3.up * 2f, Quaternion.identity);
         }
+
+        // 막타에서는 Hit를 건너뛰어 사망이 바로 보이도록 함
         if (currentHP <= 0)
         {
             Die();
+            return;
         }
+
+        if (animator != null)
+            animator.SetTrigger("Hit");
     }
 
     void Die()
@@ -74,48 +81,50 @@ public class EnemyHealth : MonoBehaviour
         if (isDead) return;
 
         isDead = true;
-        enemyCollider.enabled = false;
+        if (enemyCollider != null)
+            enemyCollider.enabled = false;
 
-        animator.ResetTrigger("Attack");
-        animator.ResetTrigger("Hit");
-        animator.SetTrigger("Death");
+        ReduceEnemyCount();
 
-        FindAnyObjectByType<PlayerStatus>()?.GainXP(10); // 적당히 10XP 주는 식
+        if (animator != null)
+        {
+            animator.ResetTrigger("Attack");
+            animator.ResetTrigger("Hit");
+            animator.SetTrigger("Death");
+        }
 
-        // 애니메이션 이벤트가 유실될 경우를 대비해 안전장치로도 파괴
+        FindAnyObjectByType<PlayerStatus>()?.GainXP(10);
+
         StartCoroutine(ForceDestroy());
     }
 
     /// <summary>
-    /// Death 애니메이션 종료 후 2초 뒤에 오브젝트 제거
-    /// 애니메이션 이벤트로 호출
+    /// Death 애니메이션 이벤트로 호출. 애니 종료 시 즉시 제거.
     /// </summary>
     public void OnDeathAnimationEnd()
     {
-        // 일정 시간 뒤 오브젝트 제거 (애니메이션 재생 보장)
-        if (!isDead) return; // 죽은 적이 아닌 경우 무시
+        if (!isDead) return;
 
-        if (!enemyCountReduced)
-        {
-            EnemyManager.EnemyCount--;
-            enemyCountReduced = true;
-        }
-
-        Destroy(gameObject, 2f);
+        ReduceEnemyCount();
+        Destroy(gameObject);
     }
 
     IEnumerator ForceDestroy()
-    {  
-        yield return new WaitForSeconds(3.5f); // 죽는 애니메이션 길이에 맞춰 (예: 3.5초)
-        if (this != null && gameObject.activeInHierarchy)
+    {
+        yield return new WaitForSeconds(DeathDestroyFallbackSeconds);
+        if (this != null && gameObject != null)
         {
-            if (!enemyCountReduced)
-            {
-                EnemyManager.EnemyCount--;
-                enemyCountReduced = true;
-            }
-
+            ReduceEnemyCount();
             Destroy(gameObject);
         }
+    }
+
+    private void ReduceEnemyCount()
+    {
+        if (enemyCountReduced)
+            return;
+
+        EnemyManager.EnemyCount--;
+        enemyCountReduced = true;
     }
 }

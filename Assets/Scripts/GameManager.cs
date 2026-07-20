@@ -49,6 +49,7 @@ public class GameManager : MonoBehaviour
     private void Start()
     {
         EnsurePlayerExists();
+        PlayerStatusUI.EnsureExists();
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -57,6 +58,7 @@ public class GameManager : MonoBehaviour
             return;
 
         EnsurePlayerExists();
+        PlayerStatusUI.EnsureExists();
     }
 
     private void EnsurePlayerExists()

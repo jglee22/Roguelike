@@ -24,6 +24,8 @@ public enum UpgradeType
 }
 public class UpgradeManager : MonoBehaviour
 {
+    public static UpgradeManager Instance { get; private set; }
+
     public GameObject upgradePanelDescText;
     public GameObject upgradePanel;
 
@@ -34,6 +36,21 @@ public class UpgradeManager : MonoBehaviour
     private Queue<bool> upgradeQueue = new Queue<bool>();
     private bool isUpgradeShowing = false;
     private List<Button> upgradeButtons = new List<Button>(); // 생성된 버튼 추적용
+
+    /// <summary>강화 선택 중에는 이동·전투·포탈 진입을 막습니다.</summary>
+    public bool IsUpgradeBlocking => isUpgradeShowing || upgradeQueue.Count > 0;
+
+    private void Awake()
+    {
+        Instance = this;
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
     private void Start()
     {
         upgradePanelDescText.SetActive(false);
@@ -45,6 +62,7 @@ public class UpgradeManager : MonoBehaviour
 
         upgradePanel.gameObject.SetActive(true);
         upgradePanelDescText.SetActive(true);
+        Time.timeScale = 0f;
 
         foreach (var option in selectedOptions)
         {
@@ -114,20 +132,21 @@ public class UpgradeManager : MonoBehaviour
     }
     void ClosePanel()
     {
-        // 버튼들 제거
         foreach (Transform child in upgradePanel.transform)
         {
             Destroy(child.gameObject);
         }
         upgradePanel.SetActive(false);
         upgradePanelDescText.SetActive(false);
-        Time.timeScale = 1f;
+        // timeScale은 OnUpgradeSelected에서 큐가 비었을 때만 복구합니다.
     }
+
     public void RequestUpgrade()
     { 
         upgradeQueue.Enqueue(true);
-        TryShowUpgrade(); // 중복 방지 체크 포함
+        TryShowUpgrade();
     }
+
     private void TryShowUpgrade()
     {
         if (isUpgradeShowing || upgradeQueue.Count == 0)
@@ -135,27 +154,40 @@ public class UpgradeManager : MonoBehaviour
 
         isUpgradeShowing = true;
 
-        // 업그레이드 가능한 항목 필터링 후
         var availableUpgrades = allUpgrades
             .Where(data => !PlayerStatus.Instance.IsUpgradeMaxed(data.upgradeType))
             .ToList();
 
-        // 그 중에서 3개만 무작위로 선택
+        if (availableUpgrades.Count == 0)
+        {
+            upgradeQueue.Clear();
+            isUpgradeShowing = false;
+            Time.timeScale = 1f;
+            Debug.Log("선택 가능한 강화가 없어 강화 UI를 건너뜁니다.");
+            return;
+        }
+
         var selectedOptions = availableUpgrades
             .OrderBy(x => Random.value)
             .Take(3)
             .ToList();
 
-        // 실제 UI 표시
         ShowUpgradeOptions(selectedOptions);
 
         Debug.Log("업그레이드 UI 표시됨");
     }
+
     public void OnUpgradeSelected()
     {
-        upgradeQueue.Dequeue();
+        if (upgradeQueue.Count > 0)
+            upgradeQueue.Dequeue();
+
         isUpgradeShowing = false;
         TryShowUpgrade();
+
+        // 대기 중인 강화가 더 없으면 시간 스케일 복구
+        if (!IsUpgradeBlocking)
+            Time.timeScale = 1f;
     }
     private List<UpgradeOption> GetRandomUpgradeOptions()
     {
@@ -195,8 +227,6 @@ public class UpgradeManager : MonoBehaviour
         {
             ApplyUpgrade(upgrade);
             OnUpgradeSelected();
-            upgradePanel.gameObject.SetActive(false);
-            upgradePanelDescText.SetActive(false);
         });
 
         upgradeButtons.Add(btn); // 정리용 리스트에 저장
