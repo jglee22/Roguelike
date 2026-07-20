@@ -8,7 +8,11 @@ public class PlayerHealth : MonoBehaviour
 
     private Animator animator;
     private bool isDead = false;
+    private bool isInvincible = false;
     private PlayerHealthUI healthUI;
+
+    public bool IsInvincible => isInvincible;
+    public bool IsDead => isDead;
 
     void Start()
     {
@@ -41,9 +45,15 @@ public class PlayerHealth : MonoBehaviour
         }
     }
 
+    public void SetInvincible(bool value)
+    {
+        isInvincible = value;
+    }
+
     public void TakeDamage(int damage)
     {
-        if (isDead) return;
+        if (isDead || isInvincible)
+            return;
 
         currentHP -= damage;
         if (PlayerStatus.Instance != null)
@@ -87,6 +97,7 @@ public class PlayerHealth : MonoBehaviour
     public void ResetHealth()
     {
         isDead = false;
+        isInvincible = false;
         SyncFromStatus(fullHeal: true);
         EnableControl(true);
 

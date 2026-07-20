@@ -3,22 +3,28 @@ using UnityEngine.EventSystems;
 
 public class PlayerCombat : MonoBehaviour
 {
+    private const float DefaultStaminaCost = 25f;
+
     private Animator animator;
-    private bool canAttack = true; // 공격 가능 여부
-    private bool isCombo = false; // 콤보 상태
-    private bool comboQueued = false; // 다음 공격 예약
-    private float lastClickTime = 0f;
-    private float comboTimeLimit = 1f; // 콤보 입력 가능 시간
+    private bool canAttack = true;
+    private bool comboQueued = false;
+    private int comboIndex = 0; // 0: Left, 1: Right
+    private float lastAttackTime = 0f;
 
-    public WeaponData currentWeapon; // 현재 장착한 무기 (없으면 null)
-    public AnimatorOverrideController defaultAnimator; // 기본 애니메이터 (맨손)
+    [SerializeField] private float comboTimeLimit = 1.2f;
 
-    [SerializeField] private GameObject leftHitbox; // 왼손 히트박스 (적 충돌 체크)
-    [SerializeField] private GameObject rightHitbox; // 오른손 히트박스
+    public WeaponData currentWeapon;
+    public AnimatorOverrideController defaultAnimator;
+
+    [SerializeField] private GameObject leftHitbox;
+    [SerializeField] private GameObject rightHitbox;
+
+    private PlayerMovement playerMovement;
 
     void Start()
     {
         animator = GetComponent<Animator>();
+        playerMovement = GetComponent<PlayerMovement>();
         UpdateAnimator();
 
         if (PlayerStatus.Instance == null)
@@ -38,40 +44,72 @@ public class PlayerCombat : MonoBehaviour
         PlayerStatus.Instance.InitializeElementTargets(leftHitbox.transform, rightHitbox.transform);
     }
 
-    // 왼펀치 애니메이션에 연결
-    public void EnableLeftHitbox() => leftHitbox.GetComponent<Collider>().enabled = true;
-    public void DisableLeftHitbox() => leftHitbox.GetComponent<Collider>().enabled = false;
+    public void EnableLeftHitbox()
+    {
+        BeginHitboxSwing(leftHitbox);
+    }
 
-    // 오른펀치 애니메이션에 연결
-    public void EnableRightHitbox() => rightHitbox.GetComponent<Collider>().enabled = true;
-    public void DisableRightHitbox() => rightHitbox.GetComponent<Collider>().enabled = false;
+    public void DisableLeftHitbox()
+    {
+        SetHitboxEnabled(leftHitbox, false);
+    }
+
+    public void EnableRightHitbox()
+    {
+        BeginHitboxSwing(rightHitbox);
+    }
+
+    public void DisableRightHitbox()
+    {
+        SetHitboxEnabled(rightHitbox, false);
+    }
+
+    private void BeginHitboxSwing(GameObject hitboxObject)
+    {
+        if (hitboxObject == null)
+            return;
+
+        AttackHitbox attackHitbox = hitboxObject.GetComponent<AttackHitbox>();
+        if (attackHitbox != null)
+            attackHitbox.BeginSwing();
+
+        SetHitboxEnabled(hitboxObject, true);
+    }
+
+    private void SetHitboxEnabled(GameObject hitboxObject, bool enabled)
+    {
+        if (hitboxObject == null)
+            return;
+
+        Collider col = hitboxObject.GetComponent<Collider>();
+        if (col != null)
+            col.enabled = enabled;
+    }
+
     void Update()
     {
         if (UpgradeManager.Instance != null && UpgradeManager.Instance.IsUpgradeBlocking)
             return;
 
-        if (Input.GetMouseButtonDown(0)) // 클릭 감지
+        if (playerMovement != null && playerMovement.IsDodging)
+            return;
+
+        if (Input.GetMouseButtonDown(0))
         {
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
-            {
-                // UI 클릭 중일 때는 무시
                 return;
-            }
 
             if (canAttack)
-            {
-                PerformAttack();
-            }
+                PerformAttack(fromBuffer: false);
             else
-            {
-                comboQueued = true; // 애니메이션 도중 추가 입력이 있으면 콤보 예약
-            }
+                comboQueued = true;
         }
     }
 
-    void PerformAttack()
+    void PerformAttack(bool fromBuffer)
     {
-        float staminaCost = 25f;
+        if (PlayerStatus.Instance == null)
+            return;
 
         if (PlayerStatus.Instance.currentStamina <= 0)
         {
@@ -79,101 +117,104 @@ public class PlayerCombat : MonoBehaviour
             return;
         }
 
-        PlayerStatus.Instance.currentStamina -= staminaCost;
+        // 버퍼로 이어지는 공격은 콤보를 끊지 않음
+        if (!fromBuffer && Time.time - lastAttackTime > comboTimeLimit)
+            comboIndex = 0;
+
+        PlayerStatus.Instance.currentStamina -= DefaultStaminaCost;
         PlayerStatus.Instance.lastStaminaUseTime = Time.time;
 
         canAttack = false;
+        comboQueued = false;
 
-        if (comboQueued || isCombo)
+        if (currentWeapon != null && currentWeapon.attackType != AttackType.Unarmed)
         {
-            ExecuteAttack("Right");
-            isCombo = false;
-            comboQueued = false;
+            ExecuteWeaponAttack();
+            comboIndex = 0;
         }
         else
         {
-            ExecuteAttack("Left");
-            isCombo = true;
+            string side = (comboIndex % 2 == 0) ? "Left" : "Right";
+            ExecuteUnarmedAttack(side);
+            comboIndex = (comboIndex + 1) % 2;
         }
 
-        lastClickTime = Time.time;
+        lastAttackTime = Time.time;
     }
 
-    void ExecuteAttack(string side)
+    private void ExecuteUnarmedAttack(string side)
     {
-        string triggerName = "";
+        string triggerName = $"{side}Punch";
+        if (SoundManager.Instance != null)
+            SoundManager.Instance.PlaySFX(SoundManager.Instance.punchClip);
 
-        if (currentWeapon != null)
-        {
-            switch (currentWeapon.attackType)
-            {
-                case AttackType.Unarmed:
-                    triggerName = $"{side}Punch";
-                    SoundManager.Instance.PlaySFX(SoundManager.Instance.punchClip);
-                    break;
-                case AttackType.OneHanded:
-                    triggerName = $"OneHandedAttack";
-                    isCombo = false; // 콤보 없음
-                    comboQueued = false;
-                    break;
-                case AttackType.TwoHanded:
-                    triggerName = $"TwoHandedAttack";
-                    isCombo = false; // 콤보 없음
-                    comboQueued = false;
-                    break;
-                case AttackType.Magic:
-                    triggerName = "MagicAttack";
-                    isCombo = false; // 콤보 없음
-                    comboQueued = false;
-                    break;
-            }
-        }
-       
+        // 이전 트리거가 남아 다음 공격이 먹히지 않는 경우 방지
+        animator.ResetTrigger("LeftPunch");
+        animator.ResetTrigger("RightPunch");
         animator.SetTrigger(triggerName);
         Debug.Log($"공격 트리거 실행: {triggerName}");
     }
 
-    // 애니메이션이 끝나면 호출: 공격 가능 상태 복구
+    private void ExecuteWeaponAttack()
+    {
+        string triggerName = currentWeapon.attackType switch
+        {
+            AttackType.OneHanded => "OneHandedAttack",
+            AttackType.TwoHanded => "TwoHandedAttack",
+            AttackType.Magic => "MagicAttack",
+            _ => "LeftPunch"
+        };
+
+        animator.ResetTrigger("OneHandedAttack");
+        animator.ResetTrigger("TwoHandedAttack");
+        animator.ResetTrigger("MagicAttack");
+        animator.SetTrigger(triggerName);
+        Debug.Log($"공격 트리거 실행: {triggerName}");
+    }
+
     public void EnableAttack()
     {
         canAttack = true;
+
         if (comboQueued)
         {
             comboQueued = false;
-            PerformAttack();
+            PerformAttack(fromBuffer: true);
+            return;
         }
-        Debug.Log($"canAttack: {canAttack}, isCombo: {isCombo}, comboQueued: {comboQueued}");
+
+        if (Time.time - lastAttackTime > comboTimeLimit)
+            comboIndex = 0;
     }
 
-    // 무기를 장착/해제할 때 애니메이터 업데이트
     public void EquipWeapon(WeaponData newWeapon)
     {
         currentWeapon = newWeapon;
         UpdateAnimator();
+        ResetAttackState();
     }
 
     public void UnequipWeapon()
     {
         currentWeapon = null;
         UpdateAnimator();
+        ResetAttackState();
     }
 
     private void UpdateAnimator()
     {
         if (currentWeapon != null && currentWeapon.weaponAnimator != null)
-        {
             animator.runtimeAnimatorController = currentWeapon.weaponAnimator;
-        }
         else
-        {
             animator.runtimeAnimatorController = defaultAnimator;
-        }
     }
 
     public void ResetAttackState()
     {
-        isCombo = false;
+        comboIndex = 0;
         canAttack = true;
         comboQueued = false;
+        SetHitboxEnabled(leftHitbox, false);
+        SetHitboxEnabled(rightHitbox, false);
     }
 }
